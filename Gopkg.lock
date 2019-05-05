@@ -2,10 +2,56 @@
 
 
 [[projects]]
+  name = "github.com/aws/aws-sdk-go"
+  packages = [
+    "aws",
+    "aws/awserr",
+    "aws/awsutil",
+    "aws/client",
+    "aws/client/metadata",
+    "aws/corehandlers",
+    "aws/credentials",
+    "aws/credentials/ec2rolecreds",
+    "aws/credentials/endpointcreds",
+    "aws/credentials/processcreds",
+    "aws/credentials/stscreds",
+    "aws/crr",
+    "aws/csm",
+    "aws/defaults",
+    "aws/ec2metadata",
+    "aws/endpoints",
+    "aws/request",
+    "aws/session",
+    "aws/signer/v4",
+    "internal/ini",
+    "internal/sdkio",
+    "internal/sdkrand",
+    "internal/sdkuri",
+    "internal/shareddefaults",
+    "private/protocol",
+    "private/protocol/json/jsonutil",
+    "private/protocol/jsonrpc",
+    "private/protocol/query",
+    "private/protocol/query/queryutil",
+    "private/protocol/rest",
+    "private/protocol/xml/xmlutil",
+    "service/dynamodb",
+    "service/dynamodb/dynamodbattribute",
+    "service/sts"
+  ]
+  revision = "86dc5d0ebe9f30ac9e939da21c240a98519343f2"
+  version = "v1.19.24"
+
+[[projects]]
   name = "github.com/gorilla/mux"
   packages = ["."]
   revision = "c5c6c98bc25355028a63748a498942a6398ccd22"
   version = "v1.7.1"
+
+[[projects]]
+  name = "github.com/jmespath/go-jmespath"
+  packages = ["."]
+  revision = "c2b33e84"
 
 [[projects]]
   branch = "master"
@@ -19,6 +65,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5fbd430652ae41b63ab9d7ad0785bc4de476ff48862ed4a571b9a4966ed670c0"
+  inputs-digest = "0af8f7e30df913ae95a8d5d84e50e9da84a1ccf31f3e864c5c76e1fad7afae3b"
   solver-name = "gps-cdcl"
   solver-version = 1

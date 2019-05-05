@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"time"
 
+	dynamo "github.com/codemk8/muser/pkg/dynamodb"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var ip = flag.String("addr", "127.0.0.1:8000", "Serving host and port")
-var tableName = flag.String("table", "dev.muser.codemk8", "Table name")
+var table = flag.String("table", "dev.muser.codemk8", "Table name")
+var region = flag.String("region", "us-west-2", "AWS Region the table is in")
 
 // HashPassword encrypts password into bcrypt hash, the cost should be at least 12
 func HashPassword(password string) (string, error) {
@@ -37,6 +39,13 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
+
+	client, err := dynamo.NewClient(*table, *region)
+	if err != nil {
+		panic("Failed init dynano")
+	}
+	fmt.Printf("User exist :%v", client.UserExist("non-user"))
+
 	r := mux.NewRouter()
 	r.HandleFunc("/user/register", registerHandler).Methods("POST")
 	r.HandleFunc("/user/auth", registerHandler).Methods("GET")
