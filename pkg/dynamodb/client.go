@@ -96,6 +96,9 @@ func (client DynamoClient) AddNewUser(user *User) error {
 			"Pass": {
 				S: aws.String(user.Pass),
 			},
+			"Created": {
+				N: aws.Int64(user.Created),
+			},
 			"Data": {
 				M: attrib,
 			},

@@ -8,6 +8,7 @@ import (
 type User struct {
 	UserName string
 	Pass     string
+	Created  int64
 	Data     map[string]interface{}
 }
 
