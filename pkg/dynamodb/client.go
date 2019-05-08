@@ -2,6 +2,7 @@ package dynamo
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -96,6 +97,9 @@ func (client DynamoClient) AddNewUser(user *User) error {
 			"Pass": {
 				S: aws.String(user.Pass),
 			},
+			"Created": {
+				N: aws.String(strconv.FormatInt(user.Created, 10)),
+			},
 			"Data": {
 				M: attrib,
 			},
@@ -104,7 +108,7 @@ func (client DynamoClient) AddNewUser(user *User) error {
 		TableName:              aws.String(client.table),
 	}
 
-	result, err := client.svc.PutItem(input)
+	_, err = client.svc.PutItem(input)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
@@ -132,7 +136,5 @@ func (client DynamoClient) AddNewUser(user *User) error {
 		}
 		return err
 	}
-
-	fmt.Println(result)
 	return nil
 }
