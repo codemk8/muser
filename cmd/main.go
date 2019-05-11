@@ -17,6 +17,7 @@ import (
 var ip = flag.String("addr", "127.0.0.1:8000", "Serving host and port")
 var table = flag.String("table", "dev.muser.codemk8", "Table name")
 var region = flag.String("region", "us-west-2", "AWS Region the table is in")
+var apiRoot = flag.String("api_root", "/v1", "api root path")
 var client *dynamo.DynamoClient
 
 // HashPassword encrypts password into bcrypt hash, the cost should be at least 12
@@ -156,9 +157,9 @@ func main() {
 	}
 
 	r := mux.NewRouter()
-	r.HandleFunc("/user/register", registerHandler).Methods("POST")
-	r.HandleFunc("/user/auth", authHandler).Methods("GET")
-	r.HandleFunc("/user/update", updateHandler).Methods("POST")
+	r.HandleFunc(*apiRoot+"/user/register", registerHandler).Methods("POST")
+	r.HandleFunc(*apiRoot+"/user/auth", authHandler).Methods("GET")
+	r.HandleFunc(*apiRoot+"/user/update", updateHandler).Methods("POST")
 	srv := &http.Server{
 		Handler: r,
 		Addr:    *ip,
@@ -166,5 +167,6 @@ func main() {
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
+	fmt.Printf("Running server on %s%s/user/register|auth|update, table name %s on region %s.\n", *ip, *apiRoot, *table, *region)
 	log.Fatal(srv.ListenAndServe())
 }
