@@ -17,5 +17,6 @@ $ curl -X GET --user test_user:secret  http://localhost:8000/user/auth
 ```
 
 ```bash
-$ curl -X POST http://localhost:8000/user/update
+$ curl -X POST -H "Content-Type: application/json" -d '{"user_name": "test_user", "password": "secret", "new_password":"secret2"}' http://localhost:8000/user/update
+$ curl -X POST -H "Content-Type: application/json" -d '{"user_name": "test_user", "password": "secret2", "new_password":"secret"}' http://localhost:8000/user/update
 ```

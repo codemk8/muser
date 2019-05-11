@@ -37,6 +37,12 @@ type UserJson struct {
 	Password string `json:"password,omitempty"`
 }
 
+type UpdateUserJson struct {
+	UserName    string `json:"user_name,omitempty"`
+	Password    string `json:"password,omitempty"`
+	NewPassword string `json:"new_password,omitempty"`
+}
+
 func registerHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -95,8 +101,50 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateHandler(w http.ResponseWriter, r *http.Request) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	var user UpdateUserJson
+	err = json.Unmarshal(body, &user)
+	if err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	if user.UserName == "" || user.Password == "" {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	if !client.UserExist(user.UserName) {
+		http.Error(w, "User does exist", http.StatusBadRequest)
+		return
+	}
+	dbUser, err := client.GetUser(user.UserName)
+	if err != nil {
+		http.Error(w, "Not authorized", http.StatusUnauthorized)
+		return
+	}
 
-	fmt.Fprintln(w, "update")
+	match := CheckPasswordHash(user.Password, dbUser.Pass)
+	if !match {
+		http.Error(w, "Invalid user name or password", http.StatusUnauthorized)
+		return
+	}
+
+	newHash, err := HashPassword(user.NewPassword)
+	if err != nil {
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	err = client.UpdateUserPass(&dynamo.User{UserName: user.UserName,
+		Pass: newHash})
+	if err != nil {
+		http.Error(w, "Internal error ", http.StatusInternalServerError)
+		return
+	}
+	fmt.Printf("User %s password updated.", user.UserName)
+	return
 }
 
 func main() {

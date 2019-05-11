@@ -138,3 +138,29 @@ func (client DynamoClient) AddNewUser(user *User) error {
 	}
 	return nil
 }
+
+func (client DynamoClient) UpdateUserPass(user *User) error {
+	input := &dynamodb.UpdateItemInput{
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":p": {
+				S: aws.String(user.Pass),
+			},
+		},
+
+		Key: map[string]*dynamodb.AttributeValue{
+			"UserName": {
+				S: aws.String(user.UserName),
+			},
+		},
+		ReturnValues:     aws.String("UPDATED_NEW"),
+		UpdateExpression: aws.String("SET Pass = :p"),
+		TableName:        aws.String(client.table),
+	}
+
+	_, err := client.svc.UpdateItem(input)
+	if err != nil {
+		fmt.Printf("Error updating item: %v", err)
+		return err
+	}
+	return nil
+}
