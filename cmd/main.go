@@ -83,10 +83,15 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := client.GetUser(username)
 	if err != nil {
-
+		http.Error(w, "Not authorized", http.StatusUnauthorized)
+		return
 	}
-	fmt.Printf("user name %s, password %s\n", username, password)
-	fmt.Fprintln(w, "foo")
+	match := CheckPasswordHash(password, user.Pass)
+	if !match {
+		http.Error(w, "Wrong user name or password", http.StatusUnauthorized)
+		return
+	}
+	fmt.Printf("User %s authorized.", username)
 }
 
 func updateHandler(w http.ResponseWriter, r *http.Request) {
