@@ -2,7 +2,7 @@ ifndef $(tag)
 	tag=latest
 endif
 
-build: cmd/*/*.go
+build: cmd/*.go
 	go build -o bin/muser ./cmd/main.go
 
 test: pkg/*/*.go
