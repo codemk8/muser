@@ -151,10 +151,12 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	flag.Parse()
 	var err error
+	fmt.Printf("Creating AWS client...")
 	client, err = dynamo.NewClient(*table, *region)
 	if err != nil {
 		panic("Failed init dynamoDB, check credentials or table name.")
 	}
+	fmt.Printf("Creating AWS client done!")
 
 	r := mux.NewRouter()
 	r.HandleFunc(*apiRoot+"/user/register", registerHandler).Methods("POST")

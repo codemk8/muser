@@ -2,7 +2,6 @@
 
 
 [[projects]]
-  digest = "1:6aa6a9505eb773cc911df04877fa93d449b995a67d6d1ab0dea75eb77fc198d8"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -38,49 +37,34 @@
     "private/protocol/xml/xmlutil",
     "service/dynamodb",
     "service/dynamodb/dynamodbattribute",
-    "service/sts",
+    "service/sts"
   ]
-  pruneopts = "UT"
   revision = "86dc5d0ebe9f30ac9e939da21c240a98519343f2"
   version = "v1.19.24"
 
 [[projects]]
-  digest = "1:d5f97fc268267ec1b61c3453058c738246fc3e746f14b1ae25161513b7367b0c"
   name = "github.com/gorilla/mux"
   packages = ["."]
-  pruneopts = "UT"
   revision = "c5c6c98bc25355028a63748a498942a6398ccd22"
   version = "v1.7.1"
 
 [[projects]]
-  digest = "1:bb81097a5b62634f3e9fec1014657855610c82d19b9a40c17612e32651e35dca"
   name = "github.com/jmespath/go-jmespath"
   packages = ["."]
-  pruneopts = "UT"
   revision = "c2b33e84"
 
 [[projects]]
   branch = "master"
-  digest = "1:9d5b5d543996dd584da1db1e0de1926f3e4c3a8dba0fa2f8db70f3ebee2342e0"
   name = "golang.org/x/crypto"
   packages = [
     "bcrypt",
-    "blowfish",
+    "blowfish"
   ]
-  pruneopts = "UT"
   revision = "a29dc8fdc73485234dbef99ebedb95d2eced08de"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  input-imports = [
-    "github.com/aws/aws-sdk-go/aws",
-    "github.com/aws/aws-sdk-go/aws/awserr",
-    "github.com/aws/aws-sdk-go/aws/session",
-    "github.com/aws/aws-sdk-go/service/dynamodb",
-    "github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute",
-    "github.com/gorilla/mux",
-    "golang.org/x/crypto/bcrypt",
-  ]
+  inputs-digest = "937fcaaf390304108270854107b89a9d41b6c4a3eaa09574ecbe0f23736e9467"
   solver-name = "gps-cdcl"
   solver-version = 1
