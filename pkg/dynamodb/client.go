@@ -27,7 +27,7 @@ func NewClient(table string, region string) (*DynamoClient, error) {
 
 	result, err := svc.Scan(params)
 	if err != nil {
-		fmt.Printf("Error %v", err)
+		fmt.Printf("Error %v\n", err)
 		return nil, err
 	}
 	items := []User{}
@@ -35,10 +35,10 @@ func NewClient(table string, region string) (*DynamoClient, error) {
 	// Unmarshal the Items field in the result value to the Item Go type.
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &items)
 	if err != nil {
-		fmt.Printf("failed to unmarshal Query result items, %v", err)
+		fmt.Printf("failed to unmarshal Query result items: %v\n", err)
 		return nil, err
 	}
-	// fmt.Printf("Query %d items in the table.", len(items))
+	// fmt.Printf("Query %d items in the table.\n", len(items))
 	return &DynamoClient{table: table, svc: svc}, nil
 }
 
@@ -65,7 +65,7 @@ func (client DynamoClient) GetUser(user string) (*User, error) {
 		},
 	})
 	if err != nil {
-		fmt.Printf("Error get item: %v", err)
+		fmt.Printf("Error get item: %v\n", err)
 		return nil, err
 	}
 	item := User{}
@@ -159,7 +159,7 @@ func (client DynamoClient) UpdateUserPass(user *User) error {
 
 	_, err := client.svc.UpdateItem(input)
 	if err != nil {
-		fmt.Printf("Error updating item: %v", err)
+		fmt.Printf("Error updating item: %v\n", err)
 		return err
 	}
 	return nil

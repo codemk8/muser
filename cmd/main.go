@@ -98,7 +98,7 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Wrong user name or password", http.StatusUnauthorized)
 		return
 	}
-	fmt.Printf("User %s authorized.", username)
+	fmt.Printf("User %s authorized.\n", username)
 }
 
 func updateHandler(w http.ResponseWriter, r *http.Request) {
@@ -144,19 +144,19 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal error ", http.StatusInternalServerError)
 		return
 	}
-	fmt.Printf("User %s password updated.", user.UserName)
+	fmt.Printf("User %s password updated.\n", user.UserName)
 	return
 }
 
 func main() {
 	flag.Parse()
 	var err error
-	fmt.Printf("Creating AWS client...")
+	fmt.Printf("Creating AWS client...\n")
 	client, err = dynamo.NewClient(*table, *region)
 	if err != nil {
 		panic("Failed init dynamoDB, check credentials or table name.")
 	}
-	fmt.Printf("Creating AWS client done!")
+	fmt.Printf("Creating AWS client done!\n")
 
 	r := mux.NewRouter()
 	r.HandleFunc(*apiRoot+"/user/register", registerHandler).Methods("POST")
