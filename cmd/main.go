@@ -35,11 +35,13 @@ func CheckPasswordHash(password, hash string) bool {
 
 type UserJson struct {
 	UserName string `json:"user_name,omitempty"`
+	Email    string `json:"email,omitempty"`
 	Password string `json:"password,omitempty"`
 }
 
 type UpdateUserJson struct {
 	UserName    string `json:"user_name,omitempty"`
+	Email       string `json:"email,omitempty"`
 	Password    string `json:"password,omitempty"`
 	NewPassword string `json:"new_password,omitempty"`
 }
@@ -56,7 +58,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-	if user.UserName == "" || user.Password == "" {
+	if user.UserName == "" || user.Password == "" || user.Email == "" {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
@@ -71,7 +73,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dbUser := &dynamo.User{UserName: user.UserName,
-		Pass:    hash,
+		Salt:    hash,
 		Created: time.Now().Unix(),
 	}
 	err = client.AddNewUser(dbUser)
@@ -93,7 +95,7 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not authorized", http.StatusUnauthorized)
 		return
 	}
-	match := CheckPasswordHash(password, user.Pass)
+	match := CheckPasswordHash(password, user.Salt)
 	if !match {
 		http.Error(w, "Wrong user name or password", http.StatusUnauthorized)
 		return
@@ -127,24 +129,37 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	match := CheckPasswordHash(user.Password, dbUser.Pass)
+	match := CheckPasswordHash(user.Password, dbUser.Salt)
 	if !match {
 		http.Error(w, "Invalid user name or password", http.StatusUnauthorized)
 		return
 	}
 
-	newHash, err := HashPassword(user.NewPassword)
-	if err != nil {
-		http.Error(w, "Internal error", http.StatusInternalServerError)
-		return
+	if user.NewPassword != "" {
+		newHash, err := HashPassword(user.NewPassword)
+		if err != nil {
+			http.Error(w, "Internal error", http.StatusInternalServerError)
+			return
+		}
+		err = client.UpdateUserPass(&dynamo.User{UserName: user.UserName,
+			Salt: newHash})
+		if err != nil {
+			http.Error(w, "Internal error ", http.StatusInternalServerError)
+			return
+		}
+		fmt.Printf("User %s password updated.\n", user.UserName)
 	}
-	err = client.UpdateUserPass(&dynamo.User{UserName: user.UserName,
-		Pass: newHash})
-	if err != nil {
-		http.Error(w, "Internal error ", http.StatusInternalServerError)
-		return
+
+	if user.Email != "" && user.Email != dbUser.Email {
+		err = client.UpdateUserEmail(&dynamo.User{UserName: user.UserName,
+			Email: user.Email})
+		if err != nil {
+			http.Error(w, "Internal error ", http.StatusInternalServerError)
+			return
+		}
+		fmt.Printf("User %s email updated.\n", user.UserName)
 	}
-	fmt.Printf("User %s password updated.\n", user.UserName)
+
 	return
 }
 

@@ -7,7 +7,9 @@ import (
 // User is the user schame in dynamoDB
 type User struct {
 	UserName string
-	Pass     string
+	Salt     string
+	Email    string
+	Verified bool
 	Created  int64
 	Data     map[string]interface{}
 }

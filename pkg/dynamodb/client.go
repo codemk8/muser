@@ -94,8 +94,11 @@ func (client DynamoClient) AddNewUser(user *User) error {
 			"UserName": {
 				S: aws.String(user.UserName),
 			},
-			"Pass": {
-				S: aws.String(user.Pass),
+			"Email": {
+				S: aws.String(user.Email),
+			},
+			"Salt": {
+				S: aws.String(user.Salt),
 			},
 			"Created": {
 				N: aws.String(strconv.FormatInt(user.Created, 10)),
@@ -143,7 +146,7 @@ func (client DynamoClient) UpdateUserPass(user *User) error {
 	input := &dynamodb.UpdateItemInput{
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":p": {
-				S: aws.String(user.Pass),
+				S: aws.String(user.Salt),
 			},
 		},
 
@@ -153,10 +156,36 @@ func (client DynamoClient) UpdateUserPass(user *User) error {
 			},
 		},
 		ReturnValues:     aws.String("UPDATED_NEW"),
-		UpdateExpression: aws.String("SET Pass = :p"),
+		UpdateExpression: aws.String("SET Salt = :p"),
 		TableName:        aws.String(client.table),
 	}
 
+	_, err := client.svc.UpdateItem(input)
+	if err != nil {
+		fmt.Printf("Error updating item: %v\n", err)
+		return err
+	}
+	return nil
+}
+
+func (client DynamoClient) UpdateUserEmail(user *User) error {
+	input := &dynamodb.UpdateItemInput{
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":p": {
+				S: aws.String(user.Email),
+			},
+		},
+
+		Key: map[string]*dynamodb.AttributeValue{
+			"Email": {
+				S: aws.String(user.Email),
+			},
+		},
+		ReturnValues:     aws.String("UPDATED_NEW"),
+		UpdateExpression: aws.String("SET Email = :p"),
+		TableName:        aws.String(client.table),
+	}
+	// TODO Verified flag needs to set to true
 	_, err := client.svc.UpdateItem(input)
 	if err != nil {
 		fmt.Printf("Error updating item: %v\n", err)
