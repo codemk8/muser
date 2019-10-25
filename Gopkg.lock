@@ -45,6 +45,14 @@
   version = "v1.19.24"
 
 [[projects]]
+  digest = "1:78bf6c6a98a126bcec01b33e0b1e19521663269852a7dc52c38f1d4f84529cb1"
+  name = "github.com/badoux/checkmail"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "9661bd69e9ad6fce1f7579022bdab0440807722a"
+  version = "v1.1"
+
+[[projects]]
   digest = "1:d5f97fc268267ec1b61c3453058c738246fc3e746f14b1ae25161513b7367b0c"
   name = "github.com/gorilla/mux"
   packages = ["."]
@@ -79,6 +87,7 @@
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/dynamodb",
     "github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute",
+    "github.com/badoux/checkmail",
     "github.com/gorilla/mux",
     "golang.org/x/crypto/bcrypt",
   ]

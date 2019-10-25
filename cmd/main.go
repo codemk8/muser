@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/badoux/checkmail"
 	dynamo "github.com/codemk8/muser/pkg/dynamodb"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
@@ -64,6 +65,16 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if client.UserExist(user.UserName) {
 		http.Error(w, "User already exist", http.StatusBadRequest)
+		return
+	}
+	err = checkmail.ValidateFormat(user.Email)
+	if err != nil {
+		http.Error(w, "Email invalid format", http.StatusBadRequest)
+		return
+	}
+	err = checkmail.ValidateHost(user.Email)
+	if err != nil {
+		http.Error(w, "Email invalid domain", http.StatusBadRequest)
 		return
 	}
 	hash, err := HashPassword(user.Password)
