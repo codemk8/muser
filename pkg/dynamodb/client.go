@@ -9,8 +9,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/golang/glog"
 )
 
+// NewClient starts a new client
 func NewClient(table string, region string) (*DynamoClient, error) {
 	awscfg := &aws.Config{}
 	awscfg.WithRegion(region)
@@ -27,7 +29,7 @@ func NewClient(table string, region string) (*DynamoClient, error) {
 
 	result, err := svc.Scan(params)
 	if err != nil {
-		fmt.Printf("Error %v\n", err)
+		glog.Warningf("Error db scanning: %v.", err)
 		return nil, err
 	}
 	items := []User{}
@@ -35,7 +37,7 @@ func NewClient(table string, region string) (*DynamoClient, error) {
 	// Unmarshal the Items field in the result value to the Item Go type.
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &items)
 	if err != nil {
-		fmt.Printf("failed to unmarshal Query result items: %v\n", err)
+		glog.Warningf("failed to unmarshal Query result items: %v", err)
 		return nil, err
 	}
 	// fmt.Printf("Query %d items in the table.\n", len(items))
@@ -65,14 +67,14 @@ func (client DynamoClient) GetUser(user string) (*User, error) {
 		},
 	})
 	if err != nil {
-		fmt.Printf("Error get item: %v\n", err)
+		glog.Warningf("Error get item: %v", err)
 		return nil, err
 	}
 	item := User{}
 
 	err = dynamodbattribute.UnmarshalMap(result.Item, &item)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to unmarshal Record, %v", err))
+		glog.Warningf("Failed to unmarshal Record, %v", err)
 		return nil, err
 	}
 	return &item, nil
@@ -87,6 +89,7 @@ func convertAttrib(user *User) (map[string]*dynamodb.AttributeValue, error) {
 func (client DynamoClient) AddNewUser(user *User) error {
 	attrib, err := convertAttrib(user)
 	if err != nil {
+		glog.Infof("Error converting attributes: %v.", err)
 		return err
 	}
 	input := &dynamodb.PutItemInput{
@@ -135,13 +138,14 @@ func (client DynamoClient) AddNewUser(user *User) error {
 		} else {
 			// Print the error, cast err to awserr.Error to get the Code and
 			// Message from an error.
-			fmt.Println(err.Error())
+			glog.Warningf("Error Put item in db: %v.", err)
 		}
 		return err
 	}
 	return nil
 }
 
+// UpdateUserPass updates the user password
 func (client DynamoClient) UpdateUserPass(user *User) error {
 	input := &dynamodb.UpdateItemInput{
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
@@ -162,7 +166,7 @@ func (client DynamoClient) UpdateUserPass(user *User) error {
 
 	_, err := client.svc.UpdateItem(input)
 	if err != nil {
-		fmt.Printf("Error updating item: %v\n", err)
+		glog.Warningf("Error updating item: %v.", err)
 		return err
 	}
 	return nil
@@ -188,7 +192,7 @@ func (client DynamoClient) UpdateUserEmail(user *User) error {
 	// TODO Verified flag needs to set to true
 	_, err := client.svc.UpdateItem(input)
 	if err != nil {
-		fmt.Printf("Error updating item: %v\n", err)
+		glog.Warningf("Error updating item: %v", err)
 		return err
 	}
 	return nil

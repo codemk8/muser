@@ -52,35 +52,42 @@ type UpdateUserJSON struct {
 func registerHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
+		glog.Warningf("Failed to read body: %v.", err)
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 	var user UserJSON
 	err = json.Unmarshal(body, &user)
 	if err != nil {
+		glog.Warningf("Failed to unmarshall: %v.", err)
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 	if user.UserName == "" || user.Password == "" || user.Email == "" {
+		glog.Warningf("Empty user name or password or email")
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 	if client.UserExist(user.UserName) {
+		glog.Warningf("User already exist")
 		http.Error(w, "User already exist", http.StatusBadRequest)
 		return
 	}
 	err = checkmail.ValidateFormat(user.Email)
 	if err != nil {
+		glog.Warningf("Invalid email format")
 		http.Error(w, "Email invalid format", http.StatusBadRequest)
 		return
 	}
 	err = checkmail.ValidateHost(user.Email)
 	if err != nil {
+		glog.Warningf("Invalid email domain")
 		http.Error(w, "Email invalid domain", http.StatusBadRequest)
 		return
 	}
 	hash, err := HashPassword(user.Password)
 	if err != nil {
+		glog.Warningf("Error hashing password")
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
@@ -91,6 +98,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	err = client.AddNewUser(dbUser)
 	if err != nil {
+		glog.Warningf("Error adding new user: %v", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
