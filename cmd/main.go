@@ -3,11 +3,11 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
+
+	"github.com/golang/glog"
 
 	"github.com/badoux/checkmail"
 	dynamo "github.com/codemk8/muser/pkg/dynamodb"
@@ -34,13 +34,15 @@ func CheckPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-type UserJson struct {
+// UserJSON defines the new user format
+type UserJSON struct {
 	UserName string `json:"user_name,omitempty"`
 	Email    string `json:"email,omitempty"`
 	Password string `json:"password,omitempty"`
 }
 
-type UpdateUserJson struct {
+// UpdateUserJSON defines the update json format
+type UpdateUserJSON struct {
 	UserName    string `json:"user_name,omitempty"`
 	Email       string `json:"email,omitempty"`
 	Password    string `json:"password,omitempty"`
@@ -53,7 +55,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-	var user UserJson
+	var user UserJSON
 	err = json.Unmarshal(body, &user)
 	if err != nil {
 		http.Error(w, "Bad request", http.StatusBadRequest)
@@ -111,7 +113,7 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Wrong user name or password", http.StatusUnauthorized)
 		return
 	}
-	fmt.Printf("User %s authorized.\n", username)
+	glog.Infof("User %s authorized.\n", username)
 }
 
 func updateHandler(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +122,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-	var user UpdateUserJson
+	var user UpdateUserJSON
 	err = json.Unmarshal(body, &user)
 	if err != nil {
 		http.Error(w, "Bad request", http.StatusBadRequest)
@@ -158,7 +160,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Internal error ", http.StatusInternalServerError)
 			return
 		}
-		fmt.Printf("User %s password updated.\n", user.UserName)
+		glog.Infof("User %s password updated.\n", user.UserName)
 	}
 
 	if user.Email != "" && user.Email != dbUser.Email {
@@ -168,7 +170,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Internal error ", http.StatusInternalServerError)
 			return
 		}
-		fmt.Printf("User %s email updated.\n", user.UserName)
+		glog.Infof("User %s email updated.\n", user.UserName)
 	}
 
 	return
@@ -177,12 +179,12 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	flag.Parse()
 	var err error
-	fmt.Printf("Creating AWS client...\n")
+	glog.Infof("Creating AWS client...\n")
 	client, err = dynamo.NewClient(*table, *region)
 	if err != nil {
 		panic("Failed init dynamoDB, check credentials or table name.")
 	}
-	fmt.Printf("Creating AWS client done!\n")
+	glog.Infof("Creating AWS client done!\n")
 
 	r := mux.NewRouter()
 	r.HandleFunc(*apiRoot+"/user/register", registerHandler).Methods("POST")
@@ -195,6 +197,6 @@ func main() {
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
-	fmt.Printf("Running server on %s%s/user/register|auth|update, table name %s on region %s.\n", *ip, *apiRoot, *table, *region)
-	log.Fatal(srv.ListenAndServe())
+	glog.Infof("Running server on %s%s/user/register|auth|update, table name %s on region %s.\n", *ip, *apiRoot, *table, *region)
+	glog.Fatal(srv.ListenAndServe())
 }
