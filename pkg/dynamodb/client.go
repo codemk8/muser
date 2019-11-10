@@ -61,13 +61,13 @@ func (client DynamoClient) GetUser(user string) (*User, error) {
 	result, err := client.svc.GetItem(&dynamodb.GetItemInput{
 		TableName: aws.String(client.table),
 		Key: map[string]*dynamodb.AttributeValue{
-			"UserName": {
+			"user_name": {
 				S: aws.String(user),
 			},
 		},
 	})
 	if err != nil {
-		glog.Warningf("Error get item: %v", err)
+		glog.Warningf("Error get item user %s: %v", user, err)
 		return nil, err
 	}
 	item := User{}
@@ -94,19 +94,19 @@ func (client DynamoClient) AddNewUser(user *User) error {
 	}
 	input := &dynamodb.PutItemInput{
 		Item: map[string]*dynamodb.AttributeValue{
-			"UserName": {
+			"user_name": {
 				S: aws.String(user.UserName),
 			},
-			"Email": {
+			"email": {
 				S: aws.String(user.Email),
 			},
-			"Salt": {
+			"salt": {
 				S: aws.String(user.Salt),
 			},
-			"Created": {
+			"created": {
 				N: aws.String(strconv.FormatInt(user.Created, 10)),
 			},
-			"Data": {
+			"data": {
 				M: attrib,
 			},
 		},
@@ -155,7 +155,7 @@ func (client DynamoClient) UpdateUserPass(user *User) error {
 		},
 
 		Key: map[string]*dynamodb.AttributeValue{
-			"UserName": {
+			"user_name": {
 				S: aws.String(user.UserName),
 			},
 		},
@@ -181,7 +181,7 @@ func (client DynamoClient) UpdateUserEmail(user *User) error {
 		},
 
 		Key: map[string]*dynamodb.AttributeValue{
-			"Email": {
+			"email": {
 				S: aws.String(user.Email),
 			},
 		},

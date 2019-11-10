@@ -11,6 +11,8 @@ import (
 
 	"github.com/badoux/checkmail"
 	dynamo "github.com/codemk8/muser/pkg/dynamodb"
+	validation "github.com/go-ozzo/ozzo-validation"
+	"github.com/go-ozzo/ozzo-validation/is"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -41,6 +43,14 @@ type UserJSON struct {
 	Password string `json:"password,omitempty"`
 }
 
+func (a UserJSON) Validate() error {
+	return validation.ValidateStruct(&a,
+		validation.Field(&a.UserName, validation.Required, validation.Length(5, 32)),
+		validation.Field(&a.Email, validation.Required, is.Email),
+		validation.Field(&a.Password, validation.Required, validation.Length(7, 32)),
+	)
+}
+
 // UpdateUserJSON defines the update json format
 type UpdateUserJSON struct {
 	UserName    string `json:"user_name,omitempty"`
@@ -63,9 +73,18 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-	if user.UserName == "" || user.Password == "" || user.Email == "" {
-		glog.Warningf("Empty user name or password or email")
-		http.Error(w, "Bad request", http.StatusBadRequest)
+	err = user.Validate()
+	if err != nil {
+		glog.Warningf("Bad user name or password or email")
+		b, _ := json.Marshal(err)
+		http.Error(w, string(b), http.StatusBadRequest)
+		return
+	}
+
+	err = checkmail.ValidateFormat(user.Email)
+	if err != nil {
+		glog.Warningf("Invalid email format: %s", user.Email)
+		http.Error(w, "Email invalid format", http.StatusBadRequest)
 		return
 	}
 	if client.UserExist(user.UserName) {
@@ -73,18 +92,15 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User already exist", http.StatusBadRequest)
 		return
 	}
-	err = checkmail.ValidateFormat(user.Email)
-	if err != nil {
-		glog.Warningf("Invalid email format")
-		http.Error(w, "Email invalid format", http.StatusBadRequest)
-		return
-	}
-	err = checkmail.ValidateHost(user.Email)
-	if err != nil {
-		glog.Warningf("Invalid email domain")
-		http.Error(w, "Email invalid domain", http.StatusBadRequest)
-		return
-	}
+
+	/*
+		err = checkmail.ValidateHost(user.Email)
+		if err != nil {
+			glog.Warningf("Invalid email domain: %s", user.Email)
+			http.Error(w, "Email invalid domain", http.StatusBadRequest)
+			return
+		}
+	*/
 	hash, err := HashPassword(user.Password)
 	if err != nil {
 		glog.Warningf("Error hashing password")
@@ -93,8 +109,10 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dbUser := &dynamo.User{UserName: user.UserName,
-		Salt:    hash,
-		Created: time.Now().Unix(),
+		Salt:     hash,
+		Email:    user.Email,
+		Verified: false,
+		Created:  time.Now().Unix(),
 	}
 	err = client.AddNewUser(dbUser)
 	if err != nil {
