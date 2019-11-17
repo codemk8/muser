@@ -6,12 +6,12 @@ import (
 
 // User is the user schame in dynamoDB
 type User struct {
-	UserName string
-	Salt     string
-	Email    string
-	Verified bool
-	Created  int64
-	Data     map[string]interface{}
+	UserName string                 `json:"user_name,omitempty"`
+	Salt     string                 `json:"salt,omitempty"`
+	Email    string                 `json:"email,omitempty"`
+	Verified bool                   `json:"verified,omitempty"`
+	Created  int64                  `json:"created,omitempty"`
+	Data     map[string]interface{} `json:"data,omitempty"`
 }
 
 type DynamoClient struct {
