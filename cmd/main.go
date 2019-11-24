@@ -126,20 +126,23 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 func authHandler(w http.ResponseWriter, r *http.Request) {
 	username, password, authOK := r.BasicAuth()
 	if authOK == false {
+		glog.Warning("Failed to parse basic auth from header")
 		http.Error(w, "Not authorized", http.StatusUnauthorized)
 		return
 	}
 	user, err := client.GetUser(username)
 	if err != nil {
+		glog.Warningf("Failed to get user from db: %v.", err)
 		http.Error(w, "Not authorized", http.StatusUnauthorized)
 		return
 	}
 	match := CheckPasswordHash(password, user.Salt)
 	if !match {
+		glog.Warning("Password does not match hash.")
 		http.Error(w, "Wrong user name or password", http.StatusUnauthorized)
 		return
 	}
-	glog.Infof("User %s authorized.\n", username)
+	w.WriteHeader(http.StatusOK)
 }
 
 func updateHandler(w http.ResponseWriter, r *http.Request) {
