@@ -9,4 +9,7 @@ test: pkg/*/*.go
 	go test -v github.com/codemk8/muser/pkg/...
 
 clean:
-	-rm -rf bin/*
+	rm -rf bin/*
+
+module:
+	go mod vendor
