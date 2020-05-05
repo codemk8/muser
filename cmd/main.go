@@ -9,10 +9,9 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/badoux/checkmail"
 	dynamo "github.com/codemk8/muser/pkg/dynamodb"
+	"github.com/codemk8/muser/pkg/schema"
 	validation "github.com/go-ozzo/ozzo-validation"
-	"github.com/go-ozzo/ozzo-validation/is"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -39,14 +38,13 @@ func CheckPasswordHash(password, hash string) bool {
 // UserJSON defines the new user format
 type UserJSON struct {
 	UserName string `json:"user_name,omitempty"`
-	Email    string `json:"email,omitempty"`
 	Password string `json:"password,omitempty"`
 }
 
+// validation.Field(&a.Email, validation.Required, is.Email),
 func (a UserJSON) Validate() error {
 	return validation.ValidateStruct(&a,
 		validation.Field(&a.UserName, validation.Required, validation.Length(5, 32)),
-		validation.Field(&a.Email, validation.Required, is.Email),
 		validation.Field(&a.Password, validation.Required, validation.Length(7, 32)),
 	)
 }
@@ -55,41 +53,43 @@ func (a UserJSON) Validate() error {
 type UpdateUserJSON struct {
 	UserName    string `json:"user_name,omitempty"`
 	Email       string `json:"email,omitempty"`
+	Avatar      string `json:"avatar,omitempty"`
 	Password    string `json:"password,omitempty"`
 	NewPassword string `json:"new_password,omitempty"`
 }
 
 func registerHandler(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
+	user := UserJSON{}
+	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
-		glog.Warningf("Failed to read body: %v.", err)
-		http.Error(w, "Bad request", http.StatusBadRequest)
+		glog.Warningf("Failed to decode json: %v.", err)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	var user UserJSON
-	err = json.Unmarshal(body, &user)
-	if err != nil {
-		glog.Warningf("Failed to unmarshall: %v.", err)
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
+
 	err = user.Validate()
 	if err != nil {
-		glog.Warningf("Bad user name or password or email")
 		b, _ := json.Marshal(err)
+		glog.Warningf("Bad request: %f", err)
 		http.Error(w, string(b), http.StatusBadRequest)
 		return
 	}
 
-	err = checkmail.ValidateFormat(user.Email)
-	if err != nil {
-		glog.Warningf("Invalid email format: %s", user.Email)
-		http.Error(w, "Email invalid format", http.StatusBadRequest)
+	if client.BadUserName(user.UserName) {
+		glog.Warningf("Username %s is in blacklist", user.UserName)
+		http.Error(w, "username is not available", http.StatusBadRequest)
 		return
 	}
+
+	// err = checkmail.ValidateFormat(user.Email)
+	// if err != nil {
+	// 	glog.Warningf("Invalid email format: %s", user.Email)
+	// 	http.Error(w, "Email invalid format", http.StatusBadRequest)
+	// 	return
+	// }
 	if client.UserExist(user.UserName) {
 		glog.Warningf("User already exist")
-		http.Error(w, "User already exist", http.StatusBadRequest)
+		http.Error(w, "the username already exist", http.StatusBadRequest)
 		return
 	}
 
@@ -108,12 +108,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dbUser := &dynamo.User{UserName: user.UserName,
-		Salt:     hash,
-		Email:    user.Email,
-		Verified: false,
-		Created:  time.Now().Unix(),
-	}
+	dbUser := schema.NewUser(user.UserName, hash)
 	err = client.AddNewUser(dbUser)
 	if err != nil {
 		glog.Warningf("Error adding new user: %v", err)
@@ -136,7 +131,7 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not authorized", http.StatusUnauthorized)
 		return
 	}
-	match := CheckPasswordHash(password, user.Salt)
+	match := CheckPasswordHash(password, user.Secret.Salt)
 	if !match {
 		glog.Warning("Password does not match hash.")
 		http.Error(w, "Wrong user name or password", http.StatusUnauthorized)
@@ -171,7 +166,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	match := CheckPasswordHash(user.Password, dbUser.Salt)
+	match := CheckPasswordHash(user.Password, dbUser.Secret.Salt)
 	if !match {
 		http.Error(w, "Invalid user name or password", http.StatusUnauthorized)
 		return
@@ -183,8 +178,10 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
-		err = client.UpdateUserPass(&dynamo.User{UserName: user.UserName,
-			Salt: newHash})
+		err = client.UpdateUserPass(&schema.User{
+			UserName: user.UserName,
+			Secret:   schema.Secret{Salt: newHash}},
+		)
 		if err != nil {
 			http.Error(w, "Internal error ", http.StatusInternalServerError)
 			return
@@ -192,15 +189,15 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		glog.Infof("User %s password updated.\n", user.UserName)
 	}
 
-	if user.Email != "" && user.Email != dbUser.Email {
-		err = client.UpdateUserEmail(&dynamo.User{UserName: user.UserName,
-			Email: user.Email})
-		if err != nil {
-			http.Error(w, "Internal error ", http.StatusInternalServerError)
-			return
-		}
-		glog.Infof("User %s email updated.\n", user.UserName)
-	}
+	// if user.Email != "" && user.Email != dbUser.Email {
+	// 	err = client.UpdateUserEmail(&dynamo.User{UserName: user.UserName,
+	// 		Email: user.Email})
+	// 	if err != nil {
+	// 		http.Error(w, "Internal error ", http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// 	glog.Infof("User %s email updated.\n", user.UserName)
+	// }
 
 	return
 }
