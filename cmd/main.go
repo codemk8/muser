@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	dynamo "github.com/codemk8/muser/pkg/dynamodb"
 	"github.com/codemk8/muser/pkg/schema"
 	validation "github.com/go-ozzo/ozzo-validation"
+	"github.com/go-ozzo/ozzo-validation/is"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -58,6 +58,18 @@ type UpdateUserJSON struct {
 	NewPassword string `json:"new_password,omitempty"`
 }
 
+func (update UpdateUserJSON) Validate() error {
+	if update.Password != "" {
+		return validation.ValidateStruct(&update,
+			validation.Field(&update.NewPassword, validation.Required, validation.Length(7, 32)))
+	}
+	if update.Email != "" {
+		return validation.ValidateStruct(&update,
+			validation.Field(&update.Email, validation.Required, is.Email))
+	}
+	return nil
+}
+
 func registerHandler(w http.ResponseWriter, r *http.Request) {
 	user := UserJSON{}
 	err := json.NewDecoder(r.Body).Decode(&user)
@@ -93,14 +105,6 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	/*
-		err = checkmail.ValidateHost(user.Email)
-		if err != nil {
-			glog.Warningf("Invalid email domain: %s", user.Email)
-			http.Error(w, "Email invalid domain", http.StatusBadRequest)
-			return
-		}
-	*/
 	hash, err := HashPassword(user.Password)
 	if err != nil {
 		glog.Warningf("Error hashing password")
@@ -141,54 +145,64 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateHandler(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
+	update := UpdateUserJSON{}
+	err := json.NewDecoder(r.Body).Decode(&update)
 	if err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
+		glog.Warningf("Failed to decode json: %v.", err)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	var user UpdateUserJSON
-	err = json.Unmarshal(body, &user)
-	if err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
+	if update.UserName == "" {
+		http.Error(w, "bad request: no username specified", http.StatusBadRequest)
 		return
 	}
-	if user.UserName == "" || user.Password == "" {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
-	if !client.UserExist(user.UserName) {
-		http.Error(w, "User does exist", http.StatusBadRequest)
-		return
-	}
-	dbUser, err := client.GetUser(user.UserName)
+
+	dbUser, err := client.GetUser(update.UserName)
 	if err != nil {
 		http.Error(w, "Not authorized", http.StatusUnauthorized)
 		return
 	}
-
-	match := CheckPasswordHash(user.Password, dbUser.Secret.Salt)
-	if !match {
-		http.Error(w, "Invalid user name or password", http.StatusUnauthorized)
+	if dbUser == nil {
+		http.Error(w, "user not found", http.StatusBadRequest)
 		return
 	}
 
-	if user.NewPassword != "" {
-		newHash, err := HashPassword(user.NewPassword)
+	err = update.Validate()
+	if err != nil {
+		b, _ := json.Marshal(err)
+		glog.Warningf("bad request: %f", err)
+		http.Error(w, string(b), http.StatusBadRequest)
+		return
+	}
+
+	if update.Password != "" {
+		match := CheckPasswordHash(update.Password, dbUser.Secret.Salt)
+		if !match {
+			http.Error(w, "Invalid user name or password", http.StatusUnauthorized)
+			return
+		}
+		newHash, err := HashPassword(update.NewPassword)
 		if err != nil {
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
-		err = client.UpdateUserPass(&schema.User{
-			UserName: user.UserName,
-			Secret:   schema.Secret{Salt: newHash}},
-		)
-		if err != nil {
-			http.Error(w, "Internal error ", http.StatusInternalServerError)
-			return
-		}
-		glog.Infof("User %s password updated.\n", user.UserName)
-	}
+		dbUser.Secret.Salt = newHash
 
+	} else {
+		if update.Email != "" {
+			dbUser.Profile.Email = update.Email
+		}
+		if update.Avatar != "" {
+			dbUser.Profile.Avatar = update.Avatar
+		}
+	}
+	err = client.AddNewUser(dbUser)
+	if err != nil {
+		glog.Warningf("Error adding new user: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	return
 	// if user.Email != "" && user.Email != dbUser.Email {
 	// 	err = client.UpdateUserEmail(&dynamo.User{UserName: user.UserName,
 	// 		Email: user.Email})

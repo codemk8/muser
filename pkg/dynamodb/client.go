@@ -57,10 +57,7 @@ func (client DynamoClient) UserExist(user string) bool {
 	if err != nil {
 		return false
 	}
-	if item.UserName == "" {
-		return false
-	}
-	return true
+	return item.UserName == user
 }
 
 func (client DynamoClient) BadUserName(username string) bool {
@@ -71,7 +68,8 @@ func (client DynamoClient) BadUserName(username string) bool {
 // it does not return error, only the key is empty (UserName)
 func (client DynamoClient) GetUser(user string) (*schema.User, error) {
 	keyCond := expression.Key("user_name").Equal(expression.Value(user))
-	proj := expression.NamesList(expression.Name("created"),
+	proj := expression.NamesList(expression.Name("user_name"),
+		expression.Name("created"),
 		expression.Name("profile"),
 		expression.Name("secret"))
 	var expr expression.Expression
@@ -185,33 +183,5 @@ func (client DynamoClient) UpdateUserPass(user *schema.User) error {
 		glog.Warningf("Error updating item: %v.", err)
 		return err
 	}
-	return nil
-}
-
-func (client DynamoClient) UpdateUserEmail(user *schema.User) error {
-	/*
-		input := &dynamodb.UpdateItemInput{
-			ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-				":p": {
-					S: aws.String(user.Email),
-				},
-			},
-
-			Key: map[string]*dynamodb.AttributeValue{
-				"email": {
-					S: aws.String(user.Email),
-				},
-			},
-			ReturnValues:     aws.String("UPDATED_NEW"),
-			UpdateExpression: aws.String("SET Email = :p"),
-			TableName:        aws.String(client.table),
-		}
-		// TODO Verified flag needs to set to true
-		_, err := client.svc.UpdateItem(input)
-		if err != nil {
-			glog.Warningf("Error updating item: %v", err)
-			return err
-		}
-	*/
 	return nil
 }

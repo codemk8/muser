@@ -11,7 +11,7 @@ import (
 
 type Profile struct {
 	Email    string `json:"email,omitempty"`
-	Verified bool   `json:"verified,omitempty"`
+	Verified bool   `json:"verified"`
 	Avatar   string `json:"avatar,omitempty"`
 }
 
