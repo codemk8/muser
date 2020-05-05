@@ -1,6 +1,7 @@
 package dynamo
 
 import (
+	"errors"
 	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -8,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 	"github.com/codemk8/muser/pkg/schema"
 	"github.com/golang/glog"
 )
@@ -67,27 +69,45 @@ func (client DynamoClient) BadUserName(username string) bool {
 
 // GetUser returns a user in the table, if the user does not exist,
 // it does not return error, only the key is empty (UserName)
-func (client DynamoClient) GetUser(user string) (*UserSchema, error) {
-	result, err := client.svc.GetItem(&dynamodb.GetItemInput{
-		TableName: aws.String(client.table),
-		Key: map[string]*dynamodb.AttributeValue{
-			"user_name": {
-				S: aws.String(user),
-			},
-		},
-	})
+func (client DynamoClient) GetUser(user string) (*schema.User, error) {
+	keyCond := expression.Key("user_name").Equal(expression.Value(user))
+	proj := expression.NamesList(expression.Name("created"),
+		expression.Name("profile"),
+		expression.Name("secret"))
+	var expr expression.Expression
+	var err error
+	expr, err = expression.NewBuilder().WithKeyCondition(keyCond).WithProjection(proj).Build()
 	if err != nil {
-		glog.Warningf("Error get item user %s: %v", user, err)
+		glog.Warningf("failed to create the expression, %v", err)
 		return nil, err
 	}
-	item := UserSchema{}
+	input := dynamodb.QueryInput{
+		KeyConditionExpression:    expr.KeyCondition(),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+		FilterExpression:          expr.Filter(),
+		ProjectionExpression:      expr.Projection(),
+		TableName:                 aws.String(client.table),
+		Limit:                     aws.Int64(1),
+		ScanIndexForward:          aws.Bool(false), // by created order
+	}
 
-	err = dynamodbattribute.UnmarshalMap(result.Item, &item)
+	result, err := client.svc.Query(&input)
+	if err != nil {
+		glog.Warningf("Error get item: %v\n", err)
+		return nil, err
+	}
+	users := []schema.User{}
+	if len(result.Items) == 0 {
+		return nil, errors.New("user not found")
+	}
+	// items := Project{}
+	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &users)
 	if err != nil {
 		glog.Warningf("Failed to unmarshal Record, %v", err)
 		return nil, err
 	}
-	return &item, nil
+	return &users[0], nil
 }
 
 // convert user.Data to attributeValue for PutItem
