@@ -191,8 +191,13 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		if update.Email != "" {
 			dbUser.Profile.Email = update.Email
+			// generate code here
+			code, expiry := schema.GenVerifyCodeAndExpiry(60)
+			dbUser.Secret.VerifyCode = code
+			dbUser.Secret.CodeExpiry = expiry
 		}
 		if update.Avatar != "" {
+			// TODO check format
 			dbUser.Profile.Avatar = update.Avatar
 		}
 	}
@@ -202,7 +207,6 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
-	return
 	// if user.Email != "" && user.Email != dbUser.Email {
 	// 	err = client.UpdateUserEmail(&dynamo.User{UserName: user.UserName,
 	// 		Email: user.Email})
@@ -214,6 +218,9 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 	// }
 
 	return
+}
+
+func getHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
@@ -230,6 +237,7 @@ func main() {
 	r.HandleFunc(*apiRoot+"/user/register", registerHandler).Methods("POST")
 	r.HandleFunc(*apiRoot+"/user/auth", authHandler).Methods("GET")
 	r.HandleFunc(*apiRoot+"/user/update", updateHandler).Methods("POST")
+	r.HandleFunc(*apiRoot+"/user", getHandler).Methods("GET")
 	srv := &http.Server{
 		Handler: r,
 		Addr:    *ip,
