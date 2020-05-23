@@ -53,7 +53,7 @@ func NewClient(table string, region string) (*DynamoClient, error) {
 }
 
 func (client DynamoClient) UserExist(user string) bool {
-	item, err := client.GetUser(user)
+	item, err := client.GetUser(user, false)
 	if err != nil {
 		return false
 	}
@@ -66,12 +66,19 @@ func (client DynamoClient) BadUserName(username string) bool {
 
 // GetUser returns a user in the table, if the user does not exist,
 // it does not return error, only the key is empty (UserName)
-func (client DynamoClient) GetUser(user string) (*schema.User, error) {
+func (client DynamoClient) GetUser(user string, getSecret bool) (*schema.User, error) {
 	keyCond := expression.Key("user_name").Equal(expression.Value(user))
-	proj := expression.NamesList(expression.Name("user_name"),
-		expression.Name("created"),
-		expression.Name("profile"),
-		expression.Name("secret"))
+	var proj expression.ProjectionBuilder
+	if getSecret {
+		proj = expression.NamesList(expression.Name("user_name"),
+			expression.Name("created"),
+			expression.Name("profile"),
+			expression.Name("secret"))
+	} else {
+		proj = expression.NamesList(expression.Name("user_name"),
+			expression.Name("created"),
+			expression.Name("profile"))
+	}
 	var expr expression.Expression
 	var err error
 	expr, err = expression.NewBuilder().WithKeyCondition(keyCond).WithProjection(proj).Build()

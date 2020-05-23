@@ -46,5 +46,8 @@ func NewUser(username string, salt string) *User {
 		Secret: Secret{
 			Salt: salt,
 		},
+		Profile: Profile{
+			Verified: false,
+		},
 	}
 }

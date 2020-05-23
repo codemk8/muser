@@ -7,6 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.25.31
 	github.com/badoux/checkmail v0.0.0-20181210160741-9661bd69e9ad // indirect
 	github.com/go-ozzo/ozzo-validation v3.6.0+incompatible
+	github.com/go-resty/resty/v2 v2.3.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/gorilla/mux v1.7.3
 	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect

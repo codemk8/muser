@@ -10,6 +10,7 @@ import (
 
 	dynamo "github.com/codemk8/muser/pkg/dynamodb"
 	"github.com/codemk8/muser/pkg/schema"
+	"github.com/codemk8/muser/pkg/verify"
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/go-ozzo/ozzo-validation/is"
 	"github.com/gorilla/mux"
@@ -20,6 +21,7 @@ var ip = flag.String("addr", "127.0.0.1:8000", "Serving host and port")
 var table = flag.String("table", "dev.muser.codemk8", "Table name")
 var region = flag.String("region", "us-west-2", "AWS Region the table is in")
 var apiRoot = flag.String("api_root", "/v1", "api root path")
+var emailEndpoint = flag.String("emailep", "", "Email service for verification")
 var client *dynamo.DynamoClient
 
 // HashPassword encrypts password into bcrypt hash, the cost should be at least 12
@@ -39,6 +41,12 @@ func CheckPasswordHash(password, hash string) bool {
 type UserJSON struct {
 	UserName string `json:"user_name,omitempty"`
 	Password string `json:"password,omitempty"`
+}
+
+// Veirfy is request for (email) verification
+type VerifyJSON struct {
+	UserName   string `json:"user_name,omitempty"`
+	VerifyCode string `json:"verify_code,omitempty"`
 }
 
 // validation.Field(&a.Email, validation.Required, is.Email),
@@ -93,12 +101,6 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// err = checkmail.ValidateFormat(user.Email)
-	// if err != nil {
-	// 	glog.Warningf("Invalid email format: %s", user.Email)
-	// 	http.Error(w, "Email invalid format", http.StatusBadRequest)
-	// 	return
-	// }
 	if client.UserExist(user.UserName) {
 		glog.Warningf("User already exist")
 		http.Error(w, "the username already exist", http.StatusBadRequest)
@@ -129,7 +131,7 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not authorized", http.StatusUnauthorized)
 		return
 	}
-	user, err := client.GetUser(username)
+	user, err := client.GetUser(username, true)
 	if err != nil {
 		glog.Warningf("Failed to get user from db: %v.", err)
 		http.Error(w, "Not authorized", http.StatusUnauthorized)
@@ -157,7 +159,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dbUser, err := client.GetUser(update.UserName)
+	dbUser, err := client.GetUser(update.UserName, false)
 	if err != nil {
 		http.Error(w, "Not authorized", http.StatusUnauthorized)
 		return
@@ -190,11 +192,16 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 
 	} else {
 		if update.Email != "" {
+			// TODO check duplicated email, reject if same email found
+
 			dbUser.Profile.Email = update.Email
 			// generate code here
 			code, expiry := schema.GenVerifyCodeAndExpiry(60)
 			dbUser.Secret.VerifyCode = code
 			dbUser.Secret.CodeExpiry = expiry
+			dbUser.Profile.Verified = false
+			// send notification to email service to send the verify code
+			verify.SendVerifyEmail(*emailEndpoint, update.UserName, update.Email, code)
 		}
 		if update.Avatar != "" {
 			// TODO check format
@@ -207,20 +214,77 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
-	// if user.Email != "" && user.Email != dbUser.Email {
-	// 	err = client.UpdateUserEmail(&dynamo.User{UserName: user.UserName,
-	// 		Email: user.Email})
-	// 	if err != nil {
-	// 		http.Error(w, "Internal error ", http.StatusInternalServerError)
-	// 		return
-	// 	}
-	// 	glog.Infof("User %s email updated.\n", user.UserName)
-	// }
 
 	return
 }
 
 func getHandler(w http.ResponseWriter, r *http.Request) {
+	user := UserJSON{}
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		glog.Warningf("Failed to decode json: %v.", err)
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	if user.UserName == "" {
+		glog.Warningf("No user name in get handler")
+		http.Error(w, "bad request, needs usename", http.StatusBadRequest)
+		return
+	}
+	dbUser, err := client.GetUser(user.UserName, false)
+	if err != nil {
+		glog.Warningf("Failed to get user from db: %v.", err)
+		http.Error(w, "Not authorized", http.StatusUnauthorized)
+		return
+	}
+	userJSON, err := json.Marshal(dbUser)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.Write(userJSON)
+
+}
+
+func verifyHandler(w http.ResponseWriter, r *http.Request) {
+	verify := VerifyJSON{}
+	err := json.NewDecoder(r.Body).Decode(&verify)
+	if err != nil {
+		glog.Warningf("Failed to decode json: %v.", err)
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	if verify.UserName == "" || verify.VerifyCode == "" {
+		glog.Warningf("No user name or verify code in verify handler")
+		http.Error(w, "bad request, needs usename or verifying code", http.StatusBadRequest)
+		return
+	}
+	dbUser, err := client.GetUser(verify.UserName, true)
+	if err != nil {
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
+	if dbUser == nil {
+		http.Error(w, "user not found", http.StatusBadRequest)
+		return
+	}
+	now := time.Now().Local().Unix()
+	if now >= dbUser.Secret.CodeExpiry {
+		http.Error(w, "verification code expired", http.StatusBadRequest)
+		return
+	}
+	if verify.VerifyCode != dbUser.Secret.VerifyCode {
+		http.Error(w, "incorrect verification code", http.StatusBadRequest)
+		return
+	}
+	dbUser.Profile.Verified = true
+	err = client.AddNewUser(dbUser)
+	if err != nil {
+		glog.Warningf("Error updating user: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	return
 }
 
 func main() {
@@ -237,7 +301,8 @@ func main() {
 	r.HandleFunc(*apiRoot+"/user/register", registerHandler).Methods("POST")
 	r.HandleFunc(*apiRoot+"/user/auth", authHandler).Methods("GET")
 	r.HandleFunc(*apiRoot+"/user/update", updateHandler).Methods("POST")
-	r.HandleFunc(*apiRoot+"/user", getHandler).Methods("GET")
+	r.HandleFunc(*apiRoot+"/user", getHandler).Methods("POST")
+	r.HandleFunc(*apiRoot+"/user/verify", verifyHandler).Methods("POST")
 	srv := &http.Server{
 		Handler: r,
 		Addr:    *ip,
