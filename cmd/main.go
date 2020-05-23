@@ -159,7 +159,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dbUser, err := client.GetUser(update.UserName, false)
+	dbUser, err := client.GetUser(update.UserName, true)
 	if err != nil {
 		http.Error(w, "Not authorized", http.StatusUnauthorized)
 		return
