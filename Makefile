@@ -3,7 +3,7 @@ ifndef $(tag)
 endif
 
 build: cmd/*.go
-	go build -o bin/muser ./cmd/main.go
+	CGO_ENABLED=0 go build -o bin/muser ./cmd/main.go
 
 test: pkg/*/*.go
 	go test -v github.com/codemk8/muser/pkg/...
